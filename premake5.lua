@@ -206,7 +206,7 @@ solution("xenia")
       systemversion("10.0")
     filter({})
   end
-  configurations({"Checked", "Debug", "Release"})
+  configurations({"Release", "Debug", "Checked"})
 
   include("third_party/aes_128.lua")
   include("third_party/capstone.lua")

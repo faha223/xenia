@@ -33,8 +33,8 @@
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/user_module.h"
 #include "xenia/kernel/util/gameinfo_utils.h"
-#include "xenia/kernel/util/xdbf_utils.h"
 #include "xenia/kernel/xam/xam_module.h"
+#include "xenia/kernel/xam/xdbf/xdbf.h"
 #include "xenia/kernel/xbdm/xbdm_module.h"
 #include "xenia/kernel/xboxkrnl/xboxkrnl_module.h"
 #include "xenia/memory.h"
@@ -276,24 +276,32 @@ X_STATUS Emulator::LaunchXexFile(std::wstring path) {
   // and then get that symlinked to game:\, so
   // -> game:\foo.xex
 
-  auto mount_path = "\\Device\\Harddisk0\\Partition0";
+  // Register local directory as some commonly used mount paths
+  std::string mount_paths[] = {
+      "\\Device\\Harddisk0\\Partition0",
+      "\\Device\\Harddisk0\\Partition1",
+      "\\Device\\Harddisk0\\Partition1\\DEVKIT",
+      "\\Device\\LauncherData",
+      "\\SystemRoot",
+  };
 
-  // Register the local directory in the virtual filesystem.
   auto parent_path = xe::find_base_path(path);
-  auto device =
-      std::make_unique<vfs::HostPathDevice>(mount_path, parent_path, true);
-  if (!device->Initialize()) {
-    XELOGE("Unable to scan host path");
-    return X_STATUS_NO_SUCH_FILE;
-  }
-  if (!file_system_->RegisterDevice(std::move(device))) {
-    XELOGE("Unable to register host path");
-    return X_STATUS_NO_SUCH_FILE;
+  for (auto path : mount_paths) {
+    auto device =
+        std::make_unique<vfs::HostPathDevice>(path, parent_path, true);
+    if (!device->Initialize()) {
+      XELOGE("Unable to scan host path");
+      return X_STATUS_NO_SUCH_FILE;
+    }
+    if (!file_system_->RegisterDevice(std::move(device))) {
+      XELOGE("Unable to register host path as %s", path.c_str());
+      return X_STATUS_NO_SUCH_FILE;
+    }
   }
 
   // Create symlinks to the device.
-  file_system_->RegisterSymbolicLink("game:", mount_path);
-  file_system_->RegisterSymbolicLink("d:", mount_path);
+  file_system_->RegisterSymbolicLink("game:", mount_paths[0]);
+  file_system_->RegisterSymbolicLink("d:", mount_paths[0]);
 
   // Get just the filename (foo.xex).
   auto file_name = xe::find_name_from_path(path);
@@ -662,6 +670,7 @@ X_STATUS Emulator::CompleteLaunch(const std::wstring& path,
   module->GetOptHeader(XEX_HEADER_EXECUTION_INFO, &info);
   if (info) {
     title_id_ = info->title_id;
+    xe::LogLineFormat(xe::LogLevel::Error, 'i', "Title ID : %.8X\n", title_id_);
   }
 
   // Try and load the resource database (xex only).
@@ -673,13 +682,16 @@ X_STATUS Emulator::CompleteLaunch(const std::wstring& path,
     uint32_t resource_size = 0;
     if (XSUCCEEDED(
             module->GetSection(title_id, &resource_data, &resource_size))) {
-      kernel::util::XdbfGameData db(
-          module->memory()->TranslateVirtual(resource_data), resource_size);
-      if (db.is_valid()) {
-        game_title_ = xe::to_wstring(db.title());
-        auto icon_block = db.icon();
+      kernel::xam::xdbf::SpaFile spa;
+      if (spa.Read(module->memory()->TranslateVirtual(resource_data),
+                   resource_size)) {
+        // Set title SPA and get title name/icon
+        kernel_state_->user_profile()->SetTitleSpaData(spa);
+        game_title_ = xe::to_wstring(spa.GetTitleName());
+        auto icon_block = spa.GetIcon();
         if (icon_block) {
-          display_window_->SetIcon(icon_block.buffer, icon_block.size);
+          display_window_->SetIcon(icon_block->data.data(),
+                                   icon_block->data.size());
         }
       }
     }

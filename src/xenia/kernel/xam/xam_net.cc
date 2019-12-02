@@ -286,8 +286,10 @@ dword_result_t NetDll_WSARecvFrom(dword_t caller, dword_t socket,
     //  //evt->Set(0, false);
     //}
   }
-
-  return 0;
+  
+  // we're not going to be receiving packets any time soon 
+  // return error so we don't wait on that - Cancerous
+  return -1;
 }
 DECLARE_XAM_EXPORT1(NetDll_WSARecvFrom, kNetworking, kStub);
 
@@ -461,7 +463,7 @@ DECLARE_XAM_EXPORT1(NetDll_XNetXnAddrToMachineId, kNetworking, kStub);
 
 void NetDll_XNetInAddrToString(dword_t caller, dword_t in_addr,
                                lpstring_t string_out, dword_t string_size) {
-  strncpy(string_out, "666.666.666.666", string_size);
+  strncpy(string_out, "127.0.0.1", string_size);
 }
 DECLARE_XAM_EXPORT1(NetDll_XNetInAddrToString, kNetworking, kStub);
 
@@ -940,6 +942,11 @@ dword_result_t NetDll_sendto(dword_t caller, dword_t socket_handle,
   return socket->SendTo(buf_ptr, buf_len, flags, &native_to, to_len);
 }
 DECLARE_XAM_EXPORT1(NetDll_sendto, kNetworking, kImplemented);
+
+dword_result_t NetDll___WSAFDIsSet(dword_t socket_handle, lpvoid_t fd_set) {
+  return 0;
+}
+DECLARE_XAM_EXPORT1(NetDll___WSAFDIsSet, kNetworking, kStub);
 
 void RegisterNetExports(xe::cpu::ExportResolver* export_resolver,
                         KernelState* kernel_state) {

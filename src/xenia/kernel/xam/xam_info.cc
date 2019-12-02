@@ -8,6 +8,7 @@
  */
 
 #include "xenia/base/logging.h"
+#include "xenia/base/cvar.h"
 #include "xenia/kernel/kernel_state.h"
 #include "xenia/kernel/user_module.h"
 #include "xenia/kernel/util/shim_utils.h"
@@ -20,6 +21,8 @@
 #if XE_PLATFORM_WIN32
 #include "xenia/base/platform_win.h"
 #endif
+
+DEFINE_int32(avpack, 8, "Video modes", "Video");
 
 namespace xe {
 namespace kernel {
@@ -195,12 +198,13 @@ void XCustomRegisterDynamicActions() {
 DECLARE_XAM_EXPORT1(XCustomRegisterDynamicActions, kNone, kStub);
 
 dword_result_t XGetAVPack() {
+  // Value from https://github.com/Free60Project/libxenon/blob/920146f32a4564006863bbcf6599c1f75ef4be83/libxenon/drivers/xenos/xenos_videomodes.h
   // DWORD
   // Not sure what the values are for this, but 6 is VGA.
   // Other likely values are 3/4/8 for HDMI or something.
   // Games seem to use this as a PAL check - if the result is not 3/4/6/8
   // they explode with errors if not in PAL mode.
-  return 6;
+  return (cvars::avpack);
 }
 DECLARE_XAM_EXPORT1(XGetAVPack, kNone, kStub);
 
@@ -290,7 +294,9 @@ void XamLoaderLaunchTitle(lpstring_t raw_name, dword_t flags) {
 
   auto& loader_data = xam->loader_data();
   loader_data.launch_flags = flags;
-
+  XELOGI(
+    "XamLoaderLaunchTitle launching: (%S) with flags (%d)",
+    std::string(raw_name).c_str(), flags);
   // Translate the launch path to a full path.
   if (raw_name && raw_name.value() == "") {
     loader_data.launch_path = "game:\\default.xex";

@@ -11,6 +11,7 @@
 
 #include "xenia/base/byte_stream.h"
 #include "xenia/kernel/kernel_state.h"
+#include "xenia/base/logging.h"
 
 namespace xe {
 namespace kernel {
@@ -31,12 +32,18 @@ void XNotifyListener::Initialize(uint64_t mask) {
 
 void XNotifyListener::EnqueueNotification(XNotificationID id, uint32_t data) {
   // Ignore if the notification doesn't match our mask.
-  if ((mask_ & uint64_t(1ULL << (id >> 25))) == 0) {
+  // TODO(Gliniak): (confirm) mask 0x01 means accept all
+  XELOGI("XnotifyListener::EnqueueNotification( Mask: %.8X ID: %.8X Drop?:(%X) )",
+	  mask_, id,
+	  ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 5) != 0)));
+  if ((mask_ & ((id >> 25) & 0x3F)) == 0 && (mask_ != 0x01) && ((id >> 5) != 0)) {
     return;
   }
 
   auto global_lock = global_critical_region_.Acquire();
-  notifications_.push_back(std::pair<XNotificationID, uint32_t>(id, data));
+  // notifications_.push_back(std::pair<XNotificationID, uint32_t>(id, data));
+  // TEST
+  notifications_.emplace_back(id, data);
   wait_handle_->Set();
 }
 

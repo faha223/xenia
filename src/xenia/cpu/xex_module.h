@@ -46,11 +46,11 @@ class XexModule : public xe::cpu::Module {
   struct SecurityInfoContext {
     const char* rsa_signature;
     const char* aes_key;
-    uint32_t image_size;
-    uint32_t image_flags;
-    uint32_t export_table;
-    uint32_t load_address;
-    uint32_t page_descriptor_count;
+    const xe::be<uint32_t>* image_size;
+    const xe::be<uint32_t>* image_flags;
+    const xe::be<uint32_t>* export_table;
+    const xe::be<uint32_t>* load_address;
+    const xe::be<uint32_t>* page_descriptor_count;
     const xex2_page_descriptor* page_descriptors;
   };
   enum XexFormat {
@@ -76,7 +76,7 @@ class XexModule : public xe::cpu::Module {
     // Calculate the new total size of the XEX image from its headers.
     auto heap = memory()->LookupHeap(base_address_);
     uint32_t total_size = 0;
-    for (uint32_t i = 0; i < xex_security_info()->page_descriptor_count; i++) {
+    for (uint32_t i = 0; i < *xex_security_info()->page_descriptor_count; i++) {
       // Byteswap the bitfield manually.
       xex2_page_descriptor desc;
       desc.value =

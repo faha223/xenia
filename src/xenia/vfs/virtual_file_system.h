@@ -27,12 +27,14 @@ class VirtualFileSystem {
  public:
   VirtualFileSystem();
   ~VirtualFileSystem();
+  Entry* ResolveDevice(const std::string& path);
 
   bool RegisterDevice(std::unique_ptr<Device> device);
   bool UnregisterDevice(const std::string& path);
 
   bool RegisterSymbolicLink(const std::string& path, const std::string& target);
   bool UnregisterSymbolicLink(const std::string& path);
+  bool IsSymbolicLink(const std::string& path);
   bool FindSymbolicLink(const std::string& path, std::string& target);
 
   Entry* ResolvePath(const std::string& path);

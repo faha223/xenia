@@ -1,0 +1,62 @@
+trigger:
+  branches:
+    include:
+    - '*'
+    exclude:
+    - gh-pages
+    - master
+  paths:
+    exclude:
+    - docs/*
+    - .github/*
+    - LICENSE
+    - README.md
+    - .appveyor.yml
+    - .travis.yml
+pr:
+  branches:
+    include:
+    - '*'
+    exclude:
+    - gh-pages
+    - master
+  paths:
+    exclude:
+    - docs/*
+    - .github/*
+    - LICENSE
+    - README.md
+    - .appveyor.yml
+    - .travis.yml
+
+jobs:
+- job:
+  pool:
+    vmImage: windows-latest
+  strategy:
+    matrix:
+      SSE2:  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
+        cpu_arch: SSE2  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
+      AVX:
+        cpu_arch: AVX
+      AVX2:
+        cpu_arch: AVX2
+      AVX512:
+        cpu_arch: AVX512
+  steps:
+  - script: xb setup
+    displayName: 'Setup'
+
+  - script: xb build --cpu_arch=$(cpu_arch) --target=src\xenia-app --target=tests\xenia-cpu-ppc-tests --target=src\xenia-vfs-dump
+    displayName: 'Build'
+
+  - script: |
+      cd build\bin\Windows\Release
+      ren xenia.exe xenia-canary.exe
+      7z a $(Build.ArtifactStagingDirectory)\xenia-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-canary.exe 
+      7z a $(Build.ArtifactStagingDirectory)\xenia-vfs-dump-$(Build.SourceBranchName).zip ..\..\..\..\LICENSE xenia-vfs-dump.exe 
+    displayName: 'Create archives'
+
+  - publish: $(Build.ArtifactStagingDirectory)
+    artifact: $(cpu_arch)
+    displayName: Publish artifacts

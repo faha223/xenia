@@ -3,15 +3,19 @@ version: 1.0.{build}-{branch}
 branches:
   except:
     - gh-pages
+    - master
 
 skip_tags: true
 
 skip_commits:
   files:
     - docs/*
+    - docs/*/*
     - .github/*
+    - .github/*/*
     - LICENSE
     - README.md
+    - .azure-pipelines.yml
     - .travis.yml
 
 skip_branch_with_pr: true
@@ -25,42 +29,28 @@ init:
   - git config --global core.autocrlf input
 
 install:
-  - cmd: xb setup
-
-platform: Windows
-
-configuration:
-  - Release
-  - Checked
+  - xb setup
 
 build_script:
-  - cmd: xb build --config=%CONFIGURATION% --target=src\xenia-app --target=tests\xenia-cpu-ppc-tests --target=src\xenia-vfs-dump
+  - xb build --target=src\xenia-app --target=tests\xenia-cpu-ppc-tests --target=src\xenia-vfs-dump
 
 after_build:
-  - cmd: |
-      7z a xenia-%appveyor_repo_branch%.zip LICENSE %APPVEYOR_BUILD_FOLDER%\build\bin\%PLATFORM%\%CONFIGURATION%\xenia.exe %APPVEYOR_BUILD_FOLDER%\build\bin\%PLATFORM%\%CONFIGURATION%\xenia.pdb
-      7z a xenia-vfs-dump-%appveyor_repo_branch%.zip LICENSE %APPVEYOR_BUILD_FOLDER%\build\bin\%PLATFORM%\%CONFIGURATION%\xenia-vfs-dump.exe %APPVEYOR_BUILD_FOLDER%\build\bin\%PLATFORM%\%CONFIGURATION%\xenia-vfs-dump.pdb
+  - |-
+      cd build\bin\Windows\Release
+      ren xenia.exe xenia-canary.exe
+      7z a ..\..\..\..\xenia-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-canary.exe
+      7z a ..\..\..\..\xenia-vfs-dump-%appveyor_repo_branch%.zip ..\..\..\..\LICENSE xenia-vfs-dump.exe
+      cd ..\..\..\..
 
 before_test:
-  - cmd: xb gentests
+  - xb gentests
 
 test_script:
-  - cmd: xb test --config=%CONFIGURATION% --no_build
+  - xb test --no_build
 
 artifacts:
   - path: xenia-cpu-ppc-test.log
   - path: xenia-$(appveyor_repo_branch).zip
   - path: xenia-vfs-dump-$(appveyor_repo_branch).zip
 
-deploy:
-  - provider: Environment
-    name: xenia-master
-    release: xenia-$(appveyor_repo_branch)-v$(appveyor_build_version)
-    artifact: xenia-$(appveyor_repo_branch).zip,xenia-vfs-dump-$(appveyor_repo_branch).zip
-    draft: false
-    prerelease: true
-    on:
-      branch: master
-      configuration: release
-      appveyor_repo_tag: true
-      is_not_pr: true
+deploy: off

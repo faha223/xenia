@@ -21,7 +21,7 @@ std::shared_ptr<cpptoml::table> ParseFile(const std::wstring& filename) {
 
 CmdVar(config, "", "Specifies the target config to load.");
 namespace config {
-std::wstring config_name = L"xenia.config.toml";
+std::wstring config_name = L"xenia-canary-config.toml";
 std::wstring config_folder;
 std::wstring config_path;
 

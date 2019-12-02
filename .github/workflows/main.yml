@@ -1,0 +1,84 @@
+name: main
+
+on:
+  push:
+    branches-ignore:
+      - 'gh-pages'
+      - 'master'
+    paths-ignore:
+      - '.github/CONTRIBUTING.md'
+      - '.github/FUNDING.md'
+      - '.github/ISSUE_TEMPLATE.md'
+      - 'docs/**'
+      - '.appveyor.yml'
+      - '.travis.yml'
+      - 'LICENSE'
+      - 'README.md'
+  pull_request:
+    branches-ignore:
+      - 'gh-pages'
+      - 'master'
+    paths-ignore:
+      - '.github/CONTRIBUTING.md'
+      - '.github/FUNDING.md'
+      - '.github/ISSUE_TEMPLATE.md'
+      - 'docs/**'
+      - '.appveyor.yml'
+      - '.travis.yml'
+      - 'LICENSE'
+      - 'README.md'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        cpu_arch: [SSE2, AVX, AVX2, AVX512]  # SSE2 BUILDS WON'T WORK ON NON-AVX(2) CPUs!
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Setup
+      run: .\xb setup
+
+    - name: Build
+      run: .\xb build --cpu_arch=${{matrix.cpu_arch}} --target=src\xenia-app --target=src\xenia-vfs-dump
+
+    - name: Prepare artifacts
+      run: |
+          ren build\bin\Windows\Release\xenia.exe xenia-canary.exe
+          robocopy build\bin\Windows\Release artifacts xenia*.exe
+          robocopy . artifacts LICENSE
+          $LastExitCode = 0
+          cd artifacts
+          7z a ..\xenia-canary.zip LICENSE xenia-canary.exe
+
+    - uses: actions/upload-artifact@master
+      with:
+        name: xenia-canary-${{matrix.cpu_arch}}
+        path: artifacts
+
+    - name: Create Release
+      if: github.event.action != 'pull_request' && matrix.cpu_arch == 'AVX'
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        tag_name: tag-${{github.sha}}
+        release_name: xenia-canary-${{github.sha}}
+        body: |
+          Changes in this Release
+          - First Change
+          - Second Change
+
+    - name: Upload Release Asset
+      if: github.event.action != 'pull_request' && matrix.cpu_arch == 'AVX'
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      with:
+        upload_url: ${{steps.create_release.outputs.upload_url}}
+        asset_path: ./xenia-canary.zip
+        asset_name: xenia-canary.zip
+        asset_content_type: application/zip
